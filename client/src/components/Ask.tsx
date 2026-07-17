@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { randomQuestion } from '../../../shared/deck';
 import type { GameView } from '../../../shared/types';
 import { sfx } from '../sfx';
-import { SeatShoe } from './Shoes';
+import { PlayerShoe } from './Shoes';
 
 interface Props {
   view: GameView;
@@ -19,7 +19,7 @@ export default function Ask({ view, ask }: Props) {
       <section className="phase phase-wait">
         <p className="round-pill">Round {view.round}</p>
         <div className="writer">
-          <SeatShoe seat={view.asker} className="writer-shoe" flip={view.asker === 0} />
+          <PlayerShoe player={asker} className="writer-shoe" flip={view.asker === 0} />
           <span className="writer-pencil">✏️</span>
         </div>
         <h2 className="phase-title">
@@ -69,7 +69,7 @@ export default function Ask({ view, ask }: Props) {
           </button>
         </div>
       </div>
-      <p className="phase-hint">You both answer it — even you!</p>
+      <p className="phase-hint">You both answer it, even you!</p>
     </section>
   );
 }

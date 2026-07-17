@@ -1,23 +1,26 @@
 # Sole Mates 👠🎩
 
-The wedding shoe game, online — a two-player game for couples. One of you creates a
-room, the other joins with a 4-letter code from any device. Take turns asking "who"
-questions, both secretly raise a shoe, then the answers reveal simultaneously after a
-3-2-1 countdown. Matches score points; mismatches start arguments (the fun kind).
+The wedding shoe game, online. A two-player game for couples: one of you creates a
+room, the other joins with a 4-letter code from any device. Each player picks their own
+shoe mascot from 10 styles × 10 colours, and the joiner can't take the host's style. Take
+turns asking "who" questions, both secretly raise a shoe, then the answers reveal at the
+same time after a 3-2-1 countdown. Matches score points; mismatches start
+arguments (the fun kind).
 
 **How to play:** see [`client/public/how-to-play.html`](client/public/how-to-play.html)
 (served at `/how-to-play.html` in the app, also linked from the in-app "?" modal).
 
 ## Stack
 
-- `client/` — Vite + React 19 + TypeScript. Sticker-book wedding theme, hand-drawn SVG
+- `client/`: Vite + React 19 + TypeScript. Sticker-book wedding theme, hand-drawn SVG
   mascots (`src/components/Shoes.tsx`), Web Audio sound effects and generative music
   (`src/sfx.ts`), canvas-confetti on matches.
-- `server/` — Node + Express + Socket.IO (TypeScript, run with `tsx`). Authoritative
+- `server/`: Node + Express + Socket.IO (TypeScript, run with `tsx`). Authoritative
   game state, rooms held in memory, personalized state snapshots that never leak the
   partner's answer before the reveal.
-- `shared/` — types and the built-in question deck, imported by both sides.
-- `api/server.ts` — Vercel Functions entry (WebSockets public beta, Fluid compute).
+- `shared/`: types, the shoe style/colour catalog (`shoes.ts`), and the built-in
+  question deck (~150 questions), imported by both sides.
+- `api/server.ts`: Vercel Functions entry (WebSockets public beta, Fluid compute).
 
 ## Develop
 

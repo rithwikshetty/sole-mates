@@ -2,7 +2,8 @@ import type { GameView, Seat } from '../../../shared/types';
 import Answer from './Answer';
 import Ask from './Ask';
 import Reveal from './Reveal';
-import { Heart, SEAT_COLORS } from './Shoes';
+import { colorInfo } from '../../../shared/shoes';
+import { Heart } from './Shoes';
 
 interface Props {
   view: GameView;
@@ -25,7 +26,7 @@ export default function Game({ view, ask, answer, next }: Props) {
               <span
                 key={seat}
                 className={`name-chip ${p && !p.connected ? 'name-chip-offline' : ''}`}
-                style={{ background: SEAT_COLORS[seat] }}
+                style={{ background: p ? colorInfo(p.color).hex : 'var(--rose)' }}
               >
                 {p ? p.name : '…'}
                 {seat === view.you && <em> (you)</em>}

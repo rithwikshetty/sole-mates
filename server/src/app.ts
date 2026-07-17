@@ -7,6 +7,7 @@ import type { ClientToServerEvents, Seat, ServerToClientEvents } from '../../sha
 import {
   askQuestion,
   cleanName,
+  parseOutfit,
   cleanQuestion,
   createRoom,
   deleteRoom,
@@ -27,7 +28,7 @@ const app = express();
 const httpServer = createServer(app);
 
 // The client always connects with path /api/server/game (the Vercel function
-// route — dot-free, because Vercel treats dotted path segments as file
+// route, dot-free, because Vercel treats dotted path segments as file
 // requests). Normalize the /api/server prefix away here so the same server
 // code works on Vercel, in local dev, and self-hosted.
 const normalizeUrl = (req: { url?: string }) => {
@@ -92,21 +93,34 @@ io.on('connection', (socket) => {
     broadcast(room);
   };
 
-  socket.on('create', (rawName, ack) => {
+  socket.on('create', (rawName, rawOutfit, ack) => {
     if (typeof ack !== 'function') return;
     const name = cleanName(rawName) || 'Player 1';
-    const { room, playerId } = createRoom(name);
+    const outfit = parseOutfit(rawOutfit);
+    if (!outfit) return void ack({ ok: false, error: 'Pick a shoe and a colour first.' });
+    const { room, playerId } = createRoom(name, outfit);
     attach(room, 0);
     ack({ ok: true, code: room.code, playerId });
   });
 
-  socket.on('join', (rawCode, rawName, ack) => {
+  socket.on('peek', (rawCode, ack) => {
+    if (typeof ack !== 'function') return;
+    const room = getRoom(rawCode);
+    if (!room) return void ack({ ok: false, error: 'Room not found. Check the code!' });
+    if (room.players[1]) return void ack({ ok: false, error: 'This room is already full.' });
+    const host = room.players[0];
+    ack({ ok: true, hostName: host.name, hostShoe: host.shoe, hostColor: host.color });
+  });
+
+  socket.on('join', (rawCode, rawName, rawOutfit, ack) => {
     if (typeof ack !== 'function') return;
     const name = cleanName(rawName);
     if (!name) return void ack({ ok: false, error: 'Please enter a name.' });
     const room = getRoom(rawCode);
     if (!room) return void ack({ ok: false, error: 'Room not found. Check the code!' });
-    const result = joinRoom(room, name);
+    const outfit = parseOutfit(rawOutfit);
+    if (!outfit) return void ack({ ok: false, error: 'Pick a shoe and a colour first.' });
+    const result = joinRoom(room, name, outfit);
     if ('error' in result) return void ack({ ok: false, error: result.error });
     attach(room, 1);
     ack({ ok: true, playerId: result.playerId });
@@ -150,7 +164,7 @@ io.on('connection', (socket) => {
     if (!session) return;
     const { room } = session;
     detach(socket.id);
-    // A room abandoned before the partner arrives is dead — free the code.
+    // A room abandoned before the partner arrives is dead, so free the code.
     if (room.phase === 'lobby') deleteRoom(room.code);
   });
 

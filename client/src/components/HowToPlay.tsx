@@ -12,14 +12,19 @@ const RULES: Array<{ emoji: string; title: string; text: string }> = [
     text: 'One of you creates a room and shares the 4-letter code. The other joins from any phone or computer.',
   },
   {
+    emoji: '👟',
+    title: 'Pick your shoe',
+    text: 'Choose your mascot: 10 shoe styles in 10 colours. Whoever joins second picks from what’s left, so no twin shoes!',
+  },
+  {
     emoji: '🎤',
     title: 'Take turns asking',
-    text: 'Each round one of you asks a "who" question — write your own or hit 🎲 Surprise me for one of ours.',
+    text: 'Each round one of you asks a "who" question. Write your own or hit 🎲 Surprise me for one of ours.',
   },
   {
     emoji: '🤫',
     title: 'Answer in secret',
-    text: 'You BOTH answer the same question by raising a shoe — yours or theirs. No peeking! You only see that your partner has locked in, never what they picked.',
+    text: 'You BOTH answer the same question by raising a shoe, yours or theirs. No peeking! You only see that your partner has locked in, never what they picked.',
   },
   {
     emoji: '🥁',
@@ -29,7 +34,7 @@ const RULES: Array<{ emoji: string; title: string; text: string }> = [
   {
     emoji: '♾️',
     title: 'Keep going',
-    text: 'The asking turn swaps every round. Play to 10, play all night — the score keeps count of your matches.',
+    text: 'The asking turn swaps every round. Play to 10 or play all night. The score keeps count of your matches.',
   },
 ];
 
@@ -63,7 +68,7 @@ export default function HowToPlay({ onClose }: Props) {
           </a>
         </p>
         <button type="button" className="btn btn-rose btn-big" onClick={close}>
-          Got it — let’s play!
+          Got it, let’s play!
         </button>
       </div>
     </div>

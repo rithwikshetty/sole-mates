@@ -1,10 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { GameView, Phase, RevealEntry, Seat } from '../../shared/types.js';
+import { isShoeColor, isShoeStyle } from '../../shared/shoes.js';
+import type { GameView, Outfit, Phase, PlayerView, RevealEntry, Seat } from '../../shared/types.js';
 
 interface Player {
   id: string;
   name: string;
   connected: boolean;
+  shoe: Outfit['shoe'];
+  color: Outfit['color'];
 }
 
 export interface Room {
@@ -47,11 +50,18 @@ export function cleanQuestion(raw: string): string {
   return String(raw).trim().slice(0, MAX_QUESTION_LEN);
 }
 
-export function createRoom(name: string): { room: Room; playerId: string } {
+/** Validate a client-sent outfit; null means the ids aren't in the catalog. */
+export function parseOutfit(raw: unknown): Outfit | null {
+  const outfit = (raw ?? {}) as Partial<Outfit>;
+  if (!isShoeStyle(outfit.shoe) || !isShoeColor(outfit.color)) return null;
+  return { shoe: outfit.shoe, color: outfit.color };
+}
+
+export function createRoom(name: string, outfit: Outfit): { room: Room; playerId: string } {
   const playerId = randomUUID();
   const room: Room = {
     code: makeCode(),
-    players: [{ id: playerId, name, connected: true }, null],
+    players: [{ id: playerId, name, connected: true, ...outfit }, null],
     phase: 'lobby',
     round: 0,
     asker: 0,
@@ -70,10 +80,17 @@ export function getRoom(code: string): Room | undefined {
   return rooms.get(String(code).trim().toUpperCase());
 }
 
-export function joinRoom(room: Room, name: string): { playerId: string } | { error: string } {
+export function joinRoom(
+  room: Room,
+  name: string,
+  outfit: Outfit,
+): { playerId: string } | { error: string } {
   if (room.players[1]) return { error: 'This room is already full.' };
+  if (room.players[0].shoe === outfit.shoe) {
+    return { error: `${room.players[0].name} already picked that shoe. Choose another style!` };
+  }
   const playerId = randomUUID();
-  room.players[1] = { id: playerId, name, connected: true };
+  room.players[1] = { id: playerId, name, connected: true, ...outfit };
   room.phase = 'asking';
   room.round = 1;
   touch(room);
@@ -135,6 +152,10 @@ export function nextRound(room: Room): string | null {
   return null;
 }
 
+function toPlayerView(player: Player): PlayerView {
+  return { name: player.name, connected: player.connected, shoe: player.shoe, color: player.color };
+}
+
 /** Build the personalized snapshot for one seat; never leaks the partner's live answer. */
 export function viewFor(room: Room, seat: Seat): GameView {
   const partner: Seat = seat === 0 ? 1 : 0;
@@ -142,10 +163,7 @@ export function viewFor(room: Room, seat: Seat): GameView {
     code: room.code,
     phase: room.phase,
     you: seat,
-    players: [
-      { name: room.players[0].name, connected: room.players[0].connected },
-      room.players[1] ? { name: room.players[1].name, connected: room.players[1].connected } : null,
-    ],
+    players: [toPlayerView(room.players[0]), room.players[1] ? toPlayerView(room.players[1]) : null],
     round: room.round,
     asker: room.asker,
     question: room.question,

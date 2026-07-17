@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { socket } from './socket';
-import type { GameView, Seat } from '../../shared/types';
+import type { GameView, Outfit, PeekAck, Seat } from '../../shared/types';
 
 const STORAGE_KEY = 'sole-mates-session';
 
@@ -65,19 +65,42 @@ export function useGame() {
     };
   }, [showToast]);
 
-  const create = useCallback((name: string) => {
-    socket.emit('create', name, (res) => {
-      storeSession({ code: res.code, playerId: res.playerId });
-    });
-  }, []);
+  // All lobby acks time out so a dropped packet can't leave a button stuck on "busy".
+  const ACK_TIMEOUT_MS = 7000;
+  const TIMEOUT_MSG = 'The connection hiccuped. Give it another go.';
+
+  const create = useCallback(
+    (name: string, outfit: Outfit) =>
+      new Promise<string | null>((resolve) => {
+        socket.timeout(ACK_TIMEOUT_MS).emit('create', name, outfit, (err, res) => {
+          if (err || !res?.ok || !res.code || !res.playerId)
+            return resolve(res?.error ?? TIMEOUT_MSG);
+          storeSession({ code: res.code, playerId: res.playerId });
+          resolve(null);
+        });
+      }),
+    [],
+  );
 
   const join = useCallback(
-    (code: string, name: string) =>
+    (code: string, name: string, outfit: Outfit) =>
       new Promise<string | null>((resolve) => {
-        socket.emit('join', code, name, (res) => {
+        socket.timeout(ACK_TIMEOUT_MS).emit('join', code, name, outfit, (err, res) => {
+          if (err) return resolve(TIMEOUT_MSG);
           if (!res.ok || !res.playerId) return resolve(res.error ?? 'Could not join the room.');
           storeSession({ code: code.trim().toUpperCase(), playerId: res.playerId });
           resolve(null);
+        });
+      }),
+    [],
+  );
+
+  /** Look at a room before joining, so the picker can grey out the host's shoe. */
+  const peek = useCallback(
+    (code: string) =>
+      new Promise<PeekAck>((resolve) => {
+        socket.timeout(ACK_TIMEOUT_MS).emit('peek', code, (err, res) => {
+          resolve(err ? { ok: false, error: TIMEOUT_MSG } : res);
         });
       }),
     [],
@@ -93,5 +116,5 @@ export function useGame() {
     setView(null);
   }, []);
 
-  return { view, booting, toast, create, join, ask, answer, next, leave };
+  return { view, booting, toast, create, join, peek, ask, answer, next, leave };
 }

@@ -3,16 +3,17 @@ import Game from './components/Game';
 import Home from './components/Home';
 import HowToPlay from './components/HowToPlay';
 import Lobby from './components/Lobby';
-import { BrideShoe } from './components/Shoes';
+import ShoeGallery from './components/ShoeGallery';
+import { ShoePic } from './components/Shoes';
 import { isMuted, sfx, startMusic, syncMutedFromStorage, toggleMuted } from './sfx';
 import { useGame } from './useGame';
 
 export default function App() {
-  const { view, booting, toast, create, join, ask, answer, next, leave } = useGame();
+  const { view, booting, toast, create, join, peek, ask, answer, next, leave } = useGame();
   const [showHelp, setShowHelp] = useState(false);
   const [muted, setMuted] = useState(isMuted());
 
-  // Browsers require a user gesture before audio — arm the music on first tap.
+  // Browsers require a user gesture before audio, so arm the music on first tap.
   useEffect(() => {
     const arm = () => startMusic();
     window.addEventListener('pointerdown', arm, { once: true });
@@ -44,10 +45,15 @@ export default function App() {
     prevPlayers.current = count;
   }, [view]);
 
+  // Dev-only mascot gallery: open /?gallery to review the artwork.
+  if (new URLSearchParams(location.search).has('gallery')) {
+    return <ShoeGallery />;
+  }
+
   if (booting) {
     return (
       <div className="boot">
-        <BrideShoe className="boot-shoe" />
+        <ShoePic shoe="heel" color="rose" className="boot-shoe" />
       </div>
     );
   }
@@ -77,7 +83,7 @@ export default function App() {
       </div>
 
       {!view ? (
-        <Home create={create} join={join} />
+        <Home create={create} join={join} peek={peek} />
       ) : view.phase === 'lobby' ? (
         <Lobby view={view} leave={leave} />
       ) : (

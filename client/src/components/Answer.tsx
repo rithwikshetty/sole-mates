@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { GameView, Seat } from '../../../shared/types';
+import { colorInfo } from '../../../shared/shoes';
 import { sfx } from '../sfx';
-import { SeatShoe, SEAT_COLORS } from './Shoes';
+import { PlayerShoe } from './Shoes';
 
 interface Props {
   view: GameView;
@@ -52,11 +53,11 @@ export default function Answer({ view, answer }: Props) {
               className={`answer-btn ${isPicked ? 'answer-btn-picked' : ''} ${dimmed ? 'answer-btn-dim' : ''} ${
                 view.youAnswered && isPicked ? 'answer-btn-locked' : ''
               }`}
-              style={{ '--seat-color': SEAT_COLORS[seat] } as React.CSSProperties}
+              style={{ '--seat-color': p ? colorInfo(p.color).hex : 'var(--rose)' } as React.CSSProperties}
               onClick={() => pick(seat)}
               disabled={view.youAnswered}
             >
-              <SeatShoe seat={seat} className="answer-shoe" flip={seat === 0} />
+              <PlayerShoe player={p} className="answer-shoe" flip={seat === 0} />
               <span className="answer-name">{p?.name}</span>
               {view.youAnswered && isPicked && <span className="locked-stamp">LOCKED ✔</span>}
             </button>

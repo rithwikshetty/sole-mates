@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GameView } from '../../../shared/types';
 import { sfx } from '../sfx';
-import { BrideShoe, Bunting, GroomShoe } from './Shoes';
+import { Bunting, PlayerShoe, ShoePic } from './Shoes';
 
 interface Props {
   view: GameView;
@@ -51,9 +51,14 @@ export default function Lobby({ view, leave }: Props) {
       </div>
 
       <div className="lobby-wait">
-        <BrideShoe className="lobby-shoe" />
+        <PlayerShoe player={view.players[0]} className="lobby-shoe" />
         <div className="lobby-ghost">
-          <GroomShoe className="lobby-shoe lobby-shoe-ghost" flip />
+          <ShoePic
+            shoe={view.players[0].shoe === 'oxford' ? 'sneaker' : 'oxford'}
+            color="slate"
+            className="lobby-shoe lobby-shoe-ghost"
+            flip
+          />
         </div>
       </div>
       <p className="wait-text">
@@ -64,7 +69,7 @@ export default function Lobby({ view, leave }: Props) {
           <span>.</span>
         </span>
       </p>
-      <p className="wait-hint">Send them the code — they can join from any phone or computer.</p>
+      <p className="wait-hint">Send them the code. They can join from any phone or computer.</p>
 
       <button type="button" className="btn-link" onClick={leave}>
         ← back home

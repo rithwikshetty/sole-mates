@@ -1,8 +1,9 @@
 import confetti from 'canvas-confetti';
 import { useEffect, useState } from 'react';
 import type { GameView, Seat } from '../../../shared/types';
+import { colorInfo } from '../../../shared/shoes';
 import { sfx } from '../sfx';
-import { SeatShoe, SEAT_COLORS } from './Shoes';
+import { PlayerShoe } from './Shoes';
 
 interface Props {
   view: GameView;
@@ -82,8 +83,8 @@ export default function Reveal({ view, next }: Props) {
               style={{ animationDelay: `${seat * 0.25}s`, borderColor: 'var(--ink)' }}
             >
               <p className="reveal-chooser">{chooser?.name} raised…</p>
-              <SeatShoe seat={chosenSeat} className="reveal-shoe" flip={chosenSeat === 0} />
-              <p className="reveal-chosen" style={{ background: SEAT_COLORS[chosenSeat] }}>
+              <PlayerShoe player={chosen} className="reveal-shoe" flip={chosenSeat === 0} />
+              <p className="reveal-chosen" style={{ background: chosen ? colorInfo(chosen.color).hex : 'var(--rose)' }}>
                 {chosen?.name}
               </p>
             </div>
@@ -104,7 +105,7 @@ export default function Reveal({ view, next }: Props) {
           next();
         }}
       >
-        Next round — {nextAsker?.name} asks! ➜
+        Next round, {nextAsker?.name} asks! ➜
       </button>
     </section>
   );

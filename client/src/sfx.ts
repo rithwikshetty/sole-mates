@@ -1,4 +1,4 @@
-// All audio is synthesized with the Web Audio API — no asset files.
+// All audio is synthesized with the Web Audio API. No asset files.
 // A tiny "toy marimba" voice for effects, plus a gentle generative
 // background loop (I–vi–IV–V plucks) that starts on the first user gesture.
 
@@ -12,7 +12,7 @@ let muted = false;
 try {
   muted = localStorage.getItem(MUTE_KEY) === '1';
 } catch {
-  /* storage unavailable — stay unmuted */
+  /* storage unavailable, stay unmuted */
 }
 
 function ensureCtx(): AudioContext | null {
