@@ -45,11 +45,24 @@ vercel deploy --prod
 
 Notes:
 
-- The Socket.IO client connects with `path: /api/server/socket.io` and the
-  `websocket` transport only (required on Vercel). The server normalizes the
-  `/api/server` prefix away, so the same code runs locally and on Vercel.
+- The Socket.IO client connects with `path: /api/server/game` and the
+  `websocket` transport only (required on Vercel; the path must stay dot-free
+  because Vercel treats dotted segments as file requests). The server
+  normalizes the `/api/server` prefix away, so the same code runs locally and
+  on Vercel.
 - Rooms are **in-memory**: on Vercel, a reconnect can land on a different function
   instance and lose the room (public-beta caveat). Fine for casual play; for durable
   rooms, add a Marketplace Redis and move room state there.
 - WebSocket connections are capped at `maxDuration` (300s); the client reconnects
   and rejoins automatically via the session stored in `sessionStorage`.
+
+## Security notes
+
+No accounts, no database, no secrets. Room codes are short-lived, rooms hold
+two players and get swept after an hour idle, and the server validates every
+payload (names, questions, shoe picks) before touching state. Don't put
+anything sensitive in a room name or question; it's a party game.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
