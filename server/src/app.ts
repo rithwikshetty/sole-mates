@@ -1,0 +1,143 @@
+import { createServer } from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import { Server } from 'socket.io';
+import type { ClientToServerEvents, Seat, ServerToClientEvents } from '../../shared/types.js';
+import {
+  askQuestion,
+  cleanName,
+  cleanQuestion,
+  createRoom,
+  findSeat,
+  getRoom,
+  joinRoom,
+  nextRound,
+  setConnected,
+  submitAnswer,
+  sweepIdleRooms,
+  viewFor,
+  type Room,
+} from './game.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const app = express();
+const httpServer = createServer(app);
+
+// The client always connects with path /api/server/game (the Vercel function
+// route — dot-free, because Vercel treats dotted path segments as file
+// requests). Normalize the /api/server prefix away here so the same server
+// code works on Vercel, in local dev, and self-hosted.
+const normalizeUrl = (req: { url?: string }) => {
+  if (req.url) req.url = req.url.replace(/^\/api\/server(?=\/|\?|$)/, '') || '/';
+};
+httpServer.prependListener('request', normalizeUrl);
+httpServer.prependListener('upgrade', normalizeUrl);
+
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+  path: '/game',
+  // In dev the Vite client runs on another port; same-origin in production.
+  cors: { origin: true },
+});
+
+// Serve the built client when it exists (production).
+const clientDist = path.resolve(__dirname, '../../client/dist');
+app.use(express.static(clientDist));
+app.get('/healthz', (_req, res) => res.send('ok'));
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/game')) return next();
+  res.sendFile(path.join(clientDist, 'index.html'), (err) => err && next());
+});
+
+interface SocketSession {
+  room: Room;
+  seat: Seat;
+}
+
+const sessions = new Map<string, SocketSession>(); // socket.id -> session
+
+function broadcast(room: Room): void {
+  for (const [socketId, session] of sessions) {
+    if (session.room === room) {
+      io.to(socketId).emit('state', viewFor(room, session.seat));
+    }
+  }
+}
+
+io.on('connection', (socket) => {
+  const attach = (room: Room, seat: Seat) => {
+    sessions.set(socket.id, { room, seat });
+    setConnected(room, seat, true);
+    broadcast(room);
+  };
+
+  socket.on('create', (rawName, ack) => {
+    if (typeof ack !== 'function') return;
+    const name = cleanName(rawName) || 'Player 1';
+    const { room, playerId } = createRoom(name);
+    attach(room, 0);
+    ack({ ok: true, code: room.code, playerId });
+  });
+
+  socket.on('join', (rawCode, rawName, ack) => {
+    if (typeof ack !== 'function') return;
+    const name = cleanName(rawName);
+    if (!name) return void ack({ ok: false, error: 'Please enter a name.' });
+    const room = getRoom(rawCode);
+    if (!room) return void ack({ ok: false, error: 'Room not found. Check the code!' });
+    const result = joinRoom(room, name);
+    if ('error' in result) return void ack({ ok: false, error: result.error });
+    attach(room, 1);
+    ack({ ok: true, playerId: result.playerId });
+  });
+
+  socket.on('rejoin', (rawCode, playerId, ack) => {
+    if (typeof ack !== 'function') return;
+    const room = getRoom(rawCode);
+    const seat = room ? findSeat(room, String(playerId)) : null;
+    if (!room || seat === null) return void ack({ ok: false, error: 'This game has ended.' });
+    attach(room, seat);
+    ack({ ok: true, playerId: String(playerId) });
+  });
+
+  socket.on('ask', (rawQuestion) => {
+    const session = sessions.get(socket.id);
+    if (!session) return;
+    const error = askQuestion(session.room, session.seat, cleanQuestion(rawQuestion));
+    if (error) return void socket.emit('errorMsg', error);
+    broadcast(session.room);
+  });
+
+  socket.on('answer', (choice) => {
+    const session = sessions.get(socket.id);
+    if (!session) return;
+    const error = submitAnswer(session.room, session.seat, choice);
+    if (error) return void socket.emit('errorMsg', error);
+    broadcast(session.room);
+  });
+
+  socket.on('next', () => {
+    const session = sessions.get(socket.id);
+    if (!session) return;
+    const error = nextRound(session.room);
+    if (error) return void socket.emit('errorMsg', error);
+    broadcast(session.room);
+  });
+
+  socket.on('disconnect', () => {
+    const session = sessions.get(socket.id);
+    sessions.delete(socket.id);
+    if (session) {
+      setConnected(session.room, session.seat, false);
+      broadcast(session.room);
+    }
+  });
+});
+
+setInterval(() => {
+  const removed = sweepIdleRooms();
+  if (removed.length) console.log(`Swept idle rooms: ${removed.join(', ')}`);
+}, 10 * 60 * 1000).unref();
+
+export { httpServer };

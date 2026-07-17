@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to play — Sole Mates</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Lilita+One&family=Pacifico&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ivory: #fff9ef;
+      --dot: #eddfbe;
+      --paper: #fffdf8;
+      --ink: #3a2733;
+      --rose: #f0688f;
+      --slate: #6188c6;
+      --gold: #e9ba4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Baloo 2', system-ui, sans-serif;
+      color: var(--ink);
+      background-color: var(--ivory);
+      background-image: radial-gradient(var(--dot) 2.5px, transparent 2.5px);
+      background-size: 30px 30px;
+      padding: 32px 20px 64px;
+    }
+    .page {
+      max-width: 680px;
+      margin: 0 auto;
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      border-radius: 28px;
+      box-shadow: 10px 10px 0 var(--ink);
+      padding: 36px 32px;
+    }
+    h1 {
+      font-family: 'Lilita One', cursive;
+      font-size: clamp(2.2rem, 8vw, 3rem);
+      margin: 0 0 4px;
+      color: var(--rose);
+      -webkit-text-stroke: 2px var(--ink);
+      paint-order: stroke fill;
+      text-shadow: 4px 4px 0 var(--ink);
+      text-align: center;
+    }
+    .subtitle {
+      font-family: 'Pacifico', cursive;
+      text-align: center;
+      opacity: 0.8;
+      margin: 0 0 28px;
+      font-size: 1.1rem;
+    }
+    h2 {
+      font-family: 'Lilita One', cursive;
+      font-size: 1.35rem;
+      margin: 28px 0 8px;
+    }
+    p, li { font-weight: 600; line-height: 1.55; margin: 0 0 10px; }
+    ol { padding-left: 0; list-style: none; counter-reset: step; margin: 0; }
+    ol > li {
+      counter-increment: step;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    ol > li::before {
+      content: counter(step);
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font-family: 'Lilita One', cursive;
+      background: var(--gold);
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .tip {
+      background: #fdf1d7;
+      border: 3px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 4px 4px 0 var(--ink);
+      padding: 14px 16px;
+      margin: 18px 0;
+    }
+    .tip strong { font-family: 'Lilita One', cursive; }
+    .colors { display: flex; gap: 12px; margin: 10px 0 0; flex-wrap: wrap; }
+    .chip {
+      color: #fff;
+      font-weight: 800;
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      padding: 4px 16px;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .back {
+      display: inline-block;
+      margin-top: 24px;
+      font-family: 'Lilita One', cursive;
+      color: var(--ink);
+      background: var(--rose);
+      border: 3px solid var(--ink);
+      border-radius: 16px;
+      box-shadow: 0 5px 0 var(--ink);
+      padding: 12px 22px;
+      text-decoration: none;
+      color: #fff;
+    }
+    footer { text-align: center; margin-top: 28px; opacity: 0.6; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Sole Mates</h1>
+    <p class="subtitle">The wedding shoe game — for the two of you, on any two devices</p>
+
+    <h2>What is this?</h2>
+    <p>
+      It's the classic wedding shoe game, online. At weddings, the couple sits back to back,
+      each holding one of their own shoes and one of their partner's. The host asks questions like
+      <em>"Who's the better cook?"</em> and both raise the shoe of the person they think it is.
+      Matching answers mean you really know each other — mismatches mean a fun argument.
+    </p>
+
+    <h2>How to play</h2>
+    <ol>
+      <li>One of you <strong>creates a room</strong> and gets a 4-letter code. Share it (or the invite link) with your partner — they can join from any phone, tablet or computer.</li>
+      <li>Each round, one of you is the <strong>asker</strong>: write your own "who" question, or tap 🎲 <strong>Surprise me</strong> to draw one from the deck. The asking turn swaps every round.</li>
+      <li>You <strong>both</strong> answer the same question — even the asker! Tap the shoe of the person you think it is, then <strong>Lock it in</strong>. You can see that your partner has locked in, but never what they picked.</li>
+      <li>When both answers are locked: <strong>3… 2… 1…</strong> both shoes are revealed at the same time. Same shoe = 💍 a match and a point. Different shoes = 😅 agree to disagree.</li>
+      <li>Keep going as long as you like — the ❤️ counter tracks your matches.</li>
+    </ol>
+
+    <h2>Who's who</h2>
+    <p>Whoever creates the room plays as the rose heel; whoever joins plays as the slate oxford.</p>
+    <div class="colors">
+      <span class="chip" style="background:#f0688f">Room creator 👠</span>
+      <span class="chip" style="background:#6188c6">Joiner 🎩</span>
+    </div>
+
+    <div class="tip">
+      <strong>House rules we recommend:</strong>
+      <p style="margin:6px 0 0">
+        Play to 10 rounds. Every mismatch must be argued about (lovingly) before the next round.
+        The player with fewer matched answers makes breakfast. 🥞
+      </p>
+    </div>
+
+    <h2>Good to know</h2>
+    <p>
+      Rooms are temporary — they live while you play and are cleaned up about an hour after
+      you stop. If your connection drops, just keep the tab open or reload; you'll rejoin
+      the same room automatically. Sounds can be muted with the 🔊 button.
+    </p>
+
+    <a class="back" href="/">← Back to the game</a>
+    <footer>Made with ❤️ for game night</footer>
+  </div>
+</body>
+</html>
