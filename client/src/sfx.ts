@@ -5,6 +5,7 @@
 const MUTE_KEY = 'sole-mates-muted';
 
 let ctx: AudioContext | null = null;
+let master: GainNode | null = null;
 let musicTimer: number | undefined;
 let musicBar = 0;
 let muted = false;
@@ -16,9 +17,20 @@ try {
 
 function ensureCtx(): AudioContext | null {
   if (typeof AudioContext === 'undefined') return null;
-  if (!ctx) ctx = new AudioContext();
+  if (!ctx) {
+    ctx = new AudioContext();
+    // Everything routes through a master gain so muting also silences
+    // oscillators that were already scheduled.
+    master = ctx.createGain();
+    master.gain.value = muted ? 0 : 1;
+    master.connect(ctx.destination);
+  }
   if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
+}
+
+function applyMasterGain(): void {
+  if (ctx && master) master.gain.setValueAtTime(muted ? 0 : 1, ctx.currentTime);
 }
 
 interface ToneOpts {
@@ -42,7 +54,7 @@ function tone({ freq, time = 0, dur = 0.15, type = 'triangle', gain = 0.12, glid
   amp.gain.setValueAtTime(0, t0);
   amp.gain.linearRampToValueAtTime(gain, t0 + 0.01);
   amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(amp).connect(ac.destination);
+  osc.connect(amp).connect(master ?? ac.destination);
   osc.start(t0);
   osc.stop(t0 + dur + 0.05);
 }
@@ -134,7 +146,9 @@ export function syncMutedFromStorage(): boolean {
   }
   if (stored !== muted) {
     muted = stored;
+    applyMasterGain();
     if (muted) stopMusic();
+    else startMusic();
   }
   return muted;
 }
@@ -147,6 +161,7 @@ export function toggleMuted(): boolean {
   } catch {
     /* fine */
   }
+  applyMasterGain();
   if (muted) stopMusic();
   else startMusic();
   return muted;

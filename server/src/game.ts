@@ -166,11 +166,12 @@ export function deleteRoom(code: string): void {
   rooms.delete(code);
 }
 
-export function sweepIdleRooms(): string[] {
+/** Sweep idle rooms, skipping any that still have connected sockets. */
+export function sweepIdleRooms(activeCodes: Set<string>): string[] {
   const now = Date.now();
   const removed: string[] = [];
   for (const [code, room] of rooms) {
-    if (now - room.lastActivity > ROOM_TTL_MS) {
+    if (now - room.lastActivity > ROOM_TTL_MS && !activeCodes.has(code)) {
       rooms.delete(code);
       removed.push(code);
     }

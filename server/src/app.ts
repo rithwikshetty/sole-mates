@@ -9,6 +9,7 @@ import {
   cleanName,
   cleanQuestion,
   createRoom,
+  deleteRoom,
   findSeat,
   getRoom,
   joinRoom,
@@ -65,8 +66,27 @@ function broadcast(room: Room): void {
   }
 }
 
+/** Presence is derived from the sessions map: a seat is connected while ANY socket holds it. */
+function seatConnected(room: Room, seat: Seat): boolean {
+  for (const session of sessions.values()) {
+    if (session.room === room && session.seat === seat) return true;
+  }
+  return false;
+}
+
+/** Remove a socket's session and recompute presence for the seat it held. */
+function detach(socketId: string): void {
+  const session = sessions.get(socketId);
+  if (!session) return;
+  sessions.delete(socketId);
+  setConnected(session.room, session.seat, seatConnected(session.room, session.seat));
+  broadcast(session.room);
+}
+
 io.on('connection', (socket) => {
   const attach = (room: Room, seat: Seat) => {
+    const prev = sessions.get(socket.id);
+    if (prev && prev.room !== room) detach(socket.id);
     sessions.set(socket.id, { room, seat });
     setConnected(room, seat, true);
     broadcast(room);
@@ -125,18 +145,23 @@ io.on('connection', (socket) => {
     broadcast(session.room);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('leave', () => {
     const session = sessions.get(socket.id);
-    sessions.delete(socket.id);
-    if (session) {
-      setConnected(session.room, session.seat, false);
-      broadcast(session.room);
-    }
+    if (!session) return;
+    const { room } = session;
+    detach(socket.id);
+    // A room abandoned before the partner arrives is dead — free the code.
+    if (room.phase === 'lobby') deleteRoom(room.code);
+  });
+
+  socket.on('disconnect', () => {
+    detach(socket.id);
   });
 });
 
 setInterval(() => {
-  const removed = sweepIdleRooms();
+  const activeCodes = new Set(Array.from(sessions.values(), (s) => s.room.code));
+  const removed = sweepIdleRooms(activeCodes);
   if (removed.length) console.log(`Swept idle rooms: ${removed.join(', ')}`);
 }, 10 * 60 * 1000).unref();
 

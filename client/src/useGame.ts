@@ -88,6 +88,7 @@ export function useGame() {
   const next = useCallback(() => socket.emit('next'), []);
 
   const leave = useCallback(() => {
+    socket.emit('leave');
     sessionStorage.removeItem(STORAGE_KEY);
     setView(null);
   }, []);

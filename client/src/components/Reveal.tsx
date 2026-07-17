@@ -9,11 +9,15 @@ interface Props {
   next: () => void;
 }
 
-function confettiBurst(): void {
+/** Returns the follow-up burst timer so the caller can cancel it on unmount. */
+function confettiBurst(): number {
   const colors = ['#F0688F', '#6188C6', '#E9BA4F', '#FFFDF8'];
   confetti({ particleCount: 90, spread: 75, origin: { x: 0.2, y: 0.7 }, colors });
   confetti({ particleCount: 90, spread: 75, origin: { x: 0.8, y: 0.7 }, colors });
-  setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { x: 0.5, y: 0.4 }, colors }), 350);
+  return window.setTimeout(
+    () => confetti({ particleCount: 60, spread: 100, origin: { x: 0.5, y: 0.4 }, colors }),
+    350,
+  );
 }
 
 export default function Reveal({ view, next }: Props) {
@@ -28,13 +32,14 @@ export default function Reveal({ view, next }: Props) {
   useEffect(() => {
     if (!reveal) return;
     if (count <= 0) {
+      let burstTimer: number | undefined;
       if (reveal.match) {
         sfx.match();
-        confettiBurst();
+        burstTimer = confettiBurst();
       } else {
         sfx.mismatch();
       }
-      return;
+      return () => window.clearTimeout(burstTimer);
     }
     sfx.tick();
     const t = setTimeout(() => setCount((c) => c - 1), 750);

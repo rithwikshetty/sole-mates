@@ -65,6 +65,7 @@ export interface ClientToServerEvents {
   ask: (question: string) => void;
   answer: (choice: Seat) => void;
   next: () => void;
+  leave: () => void;
 }
 
 export interface ServerToClientEvents {
