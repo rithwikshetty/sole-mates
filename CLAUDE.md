@@ -9,13 +9,12 @@ secret, and the answers reveal together after a countdown.
 ```bash
 npm install
 npm run dev        # server on :3001, Vite client on :5173
-npm run typecheck  # both workspaces; run after every change
+npm run typecheck  # both workspaces; run for TypeScript or contract changes
 npm run build      # client production build
 vercel deploy --prod --yes
 ```
 
-There is no test suite. Verify changes by playing a round across two browser
-tabs (Playwright works well) and running typecheck.
+There is no test suite. For game logic or socket changes, verify the affected flow with a local Socket.IO client and run typecheck. When browser testing is explicitly requested, play a round across two tabs. Documentation-only edits need content, link, and diff checks.
 
 ## Layout
 
@@ -54,12 +53,14 @@ tabs (Playwright works well) and running typecheck.
 
 ## Style
 
-- SVG mascots get reviewed zoomed-in. After touching `Shoes.tsx`, open
-  `/?gallery` (dev-only route) and screenshot it large before calling it done.
-  No overlapping or misaligned strokes.
+- SVG mascots need a visual check for overlapping or misaligned strokes. When browser inspection is authorized, use the dev-only `/?gallery` route. Otherwise report source/build checks and the remaining visual verification.
 - All user-facing text follows a plain-writing rule: no em dashes, no "not X,
   but Y" constructions, no hype words, contractions where a person would use
   them. Deck questions should be thinkers, not the clichés on every wedding
   listicle.
 - Keep the sticker-book look: 3px ink borders, hard offset shadows, the
   palette in `styles.css` variables.
+
+## Delivery boundary
+
+Complete the requested change and affected checks. Do not run the production deploy command merely because a build passed; deployment requires explicit authorization. Preserve the current branch and unrelated work.
