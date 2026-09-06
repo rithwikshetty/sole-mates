@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { sfx } from '../sfx';
 import { ShoeDuo } from './Shoes';
 
@@ -19,7 +20,7 @@ const RULES: Array<{ emoji: string; title: string; text: string }> = [
   {
     emoji: '🎤',
     title: 'Take turns asking',
-    text: 'Each round one of you asks a "who" question. Write your own or hit 🎲 Surprise me for one of ours.',
+    text: 'Each round one of you asks a "who" question. Write your own, or pick a flavour and hit 🎲 Surprise me for one of ours.',
   },
   {
     emoji: '🤫',
@@ -32,9 +33,14 @@ const RULES: Array<{ emoji: string; title: string; text: string }> = [
     text: 'When both answers are locked, the shoes go up at the same time. Same shoe = a match and a point. Different shoes = time to argue about it. 😄',
   },
   {
-    emoji: '♾️',
+    emoji: '🔥',
     title: 'Keep going',
-    text: 'The asking turn swaps every round. Play to 10 or play all night. The score keeps count of your matches.',
+    text: 'The asking turn swaps every round. Matches in a row build a streak. Play to 10 or play all night.',
+  },
+  {
+    emoji: '📖',
+    title: 'Wrap up',
+    text: 'Tap "Wrap up" between rounds for the recap: your match rate, best streak, and every round side by side. Then play again or share the score.',
   },
 ];
 
@@ -43,6 +49,14 @@ export default function HowToPlay({ onClose }: Props) {
     sfx.click();
     onClose();
   };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <div className="modal-backdrop" onClick={close}>

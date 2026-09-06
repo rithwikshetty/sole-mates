@@ -4,8 +4,13 @@ The wedding shoe game, online. A two-player game for couples: one of you creates
 room, the other joins with a 4-letter code from any device. Each player picks their own
 shoe mascot from 10 styles × 10 colours, and the joiner can't take the host's style. Take
 turns asking "who" questions, both secretly raise a shoe, then the answers reveal at the
-same time after a 3-2-1 countdown. Matches score points; mismatches start
-arguments (the fun kind).
+same time after a 3-2-1 countdown. Matches score points and build streaks; mismatches
+start arguments (the fun kind). Wrap up whenever you like for a recap of every round,
+then play again or share the score.
+
+The built-in deck has 240+ questions in ten flavours (warm-ups, at home, what if,
+self-image, our story, someday, big day, out and about, money and work, a bit spicy),
+so the asker can steer the mood or just hit "Surprise me".
 
 **How to play:** see [`client/public/how-to-play.html`](client/public/how-to-play.html)
 (served at `/how-to-play.html` in the app, also linked from the in-app "?" modal).
@@ -19,8 +24,9 @@ arguments (the fun kind).
   game state, rooms held in memory, personalized state snapshots that never leak the
   partner's answer before the reveal.
 - `shared/`: types, the shoe style/colour catalog (`shoes.ts`), and the built-in
-  question deck (~150 questions), imported by both sides.
-- `api/server.ts`: Vercel Functions entry (WebSockets public beta, Fluid compute).
+  question deck (`deck.ts`, 240+ questions tagged by flavour), imported by both sides.
+- `api/server/index.ts`: Vercel Functions entry (WebSockets public beta, Fluid compute).
+- `scripts/flow-check.mjs`: end-to-end protocol check with two Socket.IO clients.
 
 ## Develop
 
@@ -28,6 +34,7 @@ arguments (the fun kind).
 npm install
 npm run dev        # server on :3001, Vite client on :5173
 npm run typecheck  # both workspaces
+npm run check:flow # protocol check against the dev server (GAME_URL overrides the port)
 ```
 
 ## Run production build locally
@@ -55,6 +62,9 @@ Notes:
   rooms, add a Marketplace Redis and move room state there.
 - WebSocket connections are capped at `maxDuration` (300s); the client reconnects
   and rejoins automatically via the session stored in `sessionStorage`.
+- If a phone dies mid-game, the same player can join the room again from any device
+  with the same name. The server hands back the disconnected seat instead of reporting
+  the room as full.
 
 ## Security notes
 

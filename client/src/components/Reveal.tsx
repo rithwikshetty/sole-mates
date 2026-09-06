@@ -8,6 +8,7 @@ import { PlayerShoe } from './Shoes';
 interface Props {
   view: GameView;
   next: () => void;
+  finish: () => void;
 }
 
 /** Returns the follow-up burst timer so the caller can cancel it on unmount. */
@@ -21,7 +22,17 @@ function confettiBurst(): number {
   );
 }
 
-export default function Reveal({ view, next }: Props) {
+function streakLine(view: GameView): string | null {
+  const { streak, bestStreak, history } = view;
+  if (streak >= 5) return `🔥 ${streak} in a row. Are you the same person?`;
+  if (streak >= 3) return `🔥 ${streak} in a row!`;
+  if (streak === 2) return '🔥 Two in a row, keep it going!';
+  const previous = history[history.length - 2];
+  if (streak === 0 && previous?.match && bestStreak >= 2) return `Streak over. Best run this game: ${bestStreak}.`;
+  return null;
+}
+
+export default function Reveal({ view, next, finish }: Props) {
   const [count, setCount] = useState(3);
   const roundKey = view.history.length;
   const reveal = view.reveal;
@@ -62,6 +73,7 @@ export default function Reveal({ view, next }: Props) {
   }
 
   const nextAsker = view.players[view.asker === 0 ? 1 : 0];
+  const streak = streakLine(view);
 
   return (
     <section className="phase phase-reveal">
@@ -96,6 +108,7 @@ export default function Reveal({ view, next }: Props) {
         ❤️ {view.matches} match{view.matches === 1 ? '' : 'es'} in {view.history.length} round
         {view.history.length === 1 ? '' : 's'}
       </p>
+      {streak && <p className="streak-line">{streak}</p>}
 
       <button
         type="button"
@@ -106,6 +119,16 @@ export default function Reveal({ view, next }: Props) {
         }}
       >
         Next round, {nextAsker?.name} asks! ➜
+      </button>
+      <button
+        type="button"
+        className="btn-link"
+        onClick={() => {
+          sfx.click();
+          finish();
+        }}
+      >
+        Wrap up and see the recap
       </button>
     </section>
   );

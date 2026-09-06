@@ -12,9 +12,12 @@ import {
   createRoom,
   deleteRoom,
   findSeat,
+  finishGame,
   getRoom,
   joinRoom,
   nextRound,
+  restartGame,
+  seatFor,
   setConnected,
   submitAnswer,
   sweepIdleRooms,
@@ -98,18 +101,29 @@ io.on('connection', (socket) => {
     const name = cleanName(rawName) || 'Player 1';
     const outfit = parseOutfit(rawOutfit);
     if (!outfit) return void ack({ ok: false, error: 'Pick a shoe and a colour first.' });
-    const { room, playerId } = createRoom(name, outfit);
+    const created = createRoom(name, outfit);
+    if ('error' in created) return void ack({ ok: false, error: created.error });
+    const { room, playerId } = created;
     attach(room, 0);
     ack({ ok: true, code: room.code, playerId });
   });
 
-  socket.on('peek', (rawCode, ack) => {
+  socket.on('peek', (rawCode, rawName, ack) => {
     if (typeof ack !== 'function') return;
+    const name = cleanName(rawName);
+    if (!name) return void ack({ ok: false, error: 'Please enter a name.' });
     const room = getRoom(rawCode);
     if (!room) return void ack({ ok: false, error: 'Room not found. Check the code!' });
-    if (room.players[1]) return void ack({ ok: false, error: 'This room is already full.' });
-    const host = room.players[0];
-    ack({ ok: true, hostName: host.name, hostShoe: host.shoe, hostColor: host.color });
+    const spot = seatFor(room, name);
+    if ('error' in spot) return void ack({ ok: false, error: spot.error });
+    const { partner, resuming } = spot;
+    ack({
+      ok: true,
+      partnerName: partner?.name,
+      partnerShoe: partner?.shoe,
+      partnerColor: partner?.color,
+      resuming,
+    });
   });
 
   socket.on('join', (rawCode, rawName, rawOutfit, ack) => {
@@ -122,17 +136,17 @@ io.on('connection', (socket) => {
     if (!outfit) return void ack({ ok: false, error: 'Pick a shoe and a colour first.' });
     const result = joinRoom(room, name, outfit);
     if ('error' in result) return void ack({ ok: false, error: result.error });
-    attach(room, 1);
+    attach(room, result.seat);
     ack({ ok: true, playerId: result.playerId });
   });
 
   socket.on('rejoin', (rawCode, playerId, ack) => {
     if (typeof ack !== 'function') return;
     const room = getRoom(rawCode);
-    const seat = room ? findSeat(room, String(playerId)) : null;
+    const seat = room && typeof playerId === 'string' ? findSeat(room, playerId) : null;
     if (!room || seat === null) return void ack({ ok: false, error: 'This game has ended.' });
     attach(room, seat);
-    ack({ ok: true, playerId: String(playerId) });
+    ack({ ok: true, playerId });
   });
 
   socket.on('ask', (rawQuestion) => {
@@ -155,6 +169,22 @@ io.on('connection', (socket) => {
     const session = sessions.get(socket.id);
     if (!session) return;
     const error = nextRound(session.room);
+    if (error) return void socket.emit('errorMsg', error);
+    broadcast(session.room);
+  });
+
+  socket.on('finish', () => {
+    const session = sessions.get(socket.id);
+    if (!session) return;
+    const error = finishGame(session.room);
+    if (error) return void socket.emit('errorMsg', error);
+    broadcast(session.room);
+  });
+
+  socket.on('restart', () => {
+    const session = sessions.get(socket.id);
+    if (!session) return;
+    const error = restartGame(session.room);
     if (error) return void socket.emit('errorMsg', error);
     broadcast(session.room);
   });

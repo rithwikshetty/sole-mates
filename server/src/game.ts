@@ -21,6 +21,8 @@ export interface Room {
   answers: [Seat | null, Seat | null];
   reveal: RevealEntry | null;
   matches: number;
+  streak: number;
+  bestStreak: number;
   history: RevealEntry[];
   lastActivity: number;
 }
@@ -28,6 +30,7 @@ export interface Room {
 const rooms = new Map<string, Room>();
 
 const ROOM_TTL_MS = 60 * 60 * 1000; // sweep rooms idle for an hour
+const MAX_ROOMS = 500; // one instance, two players a room; plenty for a party game
 const MAX_NAME_LEN = 20;
 const MAX_QUESTION_LEN = 200;
 
@@ -42,12 +45,23 @@ function makeCode(): string {
   return code;
 }
 
-export function cleanName(raw: string): string {
-  return String(raw).trim().slice(0, MAX_NAME_LEN);
+/** Collapse whitespace and drop control characters; anything that is not a string becomes empty. */
+function cleanText(raw: unknown, max: number): string {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+    .trim();
 }
 
-export function cleanQuestion(raw: string): string {
-  return String(raw).trim().slice(0, MAX_QUESTION_LEN);
+export function cleanName(raw: unknown): string {
+  return cleanText(raw, MAX_NAME_LEN);
+}
+
+export function cleanQuestion(raw: unknown): string {
+  return cleanText(raw, MAX_QUESTION_LEN);
 }
 
 /** Validate a client-sent outfit; null means the ids aren't in the catalog. */
@@ -57,7 +71,10 @@ export function parseOutfit(raw: unknown): Outfit | null {
   return { shoe: outfit.shoe, color: outfit.color };
 }
 
-export function createRoom(name: string, outfit: Outfit): { room: Room; playerId: string } {
+const sameName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' }) === 0;
+
+export function createRoom(name: string, outfit: Outfit): { room: Room; playerId: string } | { error: string } {
+  if (rooms.size >= MAX_ROOMS) return { error: 'The venue is full right now. Try again in a few minutes.' };
   const playerId = randomUUID();
   const room: Room = {
     code: makeCode(),
@@ -69,6 +86,8 @@ export function createRoom(name: string, outfit: Outfit): { room: Room; playerId
     answers: [null, null],
     reveal: null,
     matches: 0,
+    streak: 0,
+    bestStreak: 0,
     history: [],
     lastActivity: Date.now(),
   };
@@ -76,25 +95,54 @@ export function createRoom(name: string, outfit: Outfit): { room: Room; playerId
   return { room, playerId };
 }
 
-export function getRoom(code: string): Room | undefined {
-  return rooms.get(String(code).trim().toUpperCase());
+export function getRoom(code: unknown): Room | undefined {
+  if (typeof code !== 'string') return undefined;
+  return rooms.get(code.trim().toUpperCase());
+}
+
+/**
+ * Where a newcomer with this name would sit. The empty second seat wins,
+ * unless the name belongs to a player who dropped off, in which case they
+ * get their own seat back (a dead phone should not end the game). The
+ * `partner` is whoever stays in the other seat, or null when a host reclaims
+ * a room nobody has joined yet.
+ */
+export function seatFor(
+  room: Room,
+  name: string,
+): { seat: Seat; partner: Player | null; resuming: boolean } | { error: string } {
+  const [host, guest] = room.players;
+  if (!host.connected && sameName(host.name, name)) {
+    return { seat: 0, partner: guest, resuming: true };
+  }
+  if (guest && !guest.connected && sameName(guest.name, name)) {
+    return { seat: 1, partner: host, resuming: true };
+  }
+  if (guest) return { error: 'This room is already full.' };
+  if (sameName(host.name, name)) {
+    return { error: `${host.name} is already using that name. Add a letter so we can tell you apart!` };
+  }
+  return { seat: 1, partner: host, resuming: false };
 }
 
 export function joinRoom(
   room: Room,
   name: string,
   outfit: Outfit,
-): { playerId: string } | { error: string } {
-  if (room.players[1]) return { error: 'This room is already full.' };
-  if (room.players[0].shoe === outfit.shoe) {
-    return { error: `${room.players[0].name} already picked that shoe. Choose another style!` };
+): { playerId: string; seat: Seat } | { error: string } {
+  const spot = seatFor(room, name);
+  if ('error' in spot) return spot;
+  if (spot.partner && spot.partner.shoe === outfit.shoe) {
+    return { error: `${spot.partner.name} already picked that shoe. Choose another style!` };
   }
   const playerId = randomUUID();
-  room.players[1] = { id: playerId, name, connected: true, ...outfit };
-  room.phase = 'asking';
-  room.round = 1;
+  room.players[spot.seat] = { id: playerId, name, connected: true, ...outfit };
+  if (room.phase === 'lobby' && room.players[1]) {
+    room.phase = 'asking';
+    room.round = 1;
+  }
   touch(room);
-  return { playerId };
+  return { playerId, seat: spot.seat };
 }
 
 export function findSeat(room: Room, playerId: string): Seat | null {
@@ -128,25 +176,68 @@ export function submitAnswer(room: Room, seat: Seat, choice: Seat): string | nul
   touch(room);
   if (room.answers[0] !== null && room.answers[1] !== null) {
     const answers: [Seat, Seat] = [room.answers[0], room.answers[1]];
-    room.reveal = {
-      question: room.question ?? '',
-      answers,
-      match: answers[0] === answers[1],
-    };
-    if (room.reveal.match) room.matches += 1;
+    const match = answers[0] === answers[1];
+    room.reveal = { question: room.question ?? '', answers, match };
+    if (match) {
+      room.matches += 1;
+      room.streak += 1;
+      room.bestStreak = Math.max(room.bestStreak, room.streak);
+    } else {
+      room.streak = 0;
+    }
     room.history.push(room.reveal);
     room.phase = 'reveal';
   }
   return null;
 }
 
+/**
+ * Advance to the next asking phase. Both players see the button, so a second
+ * tap that lands after the round already moved on is a no-op, not an error.
+ */
 export function nextRound(room: Room): string | null {
+  if (room.phase === 'asking' && room.question === null) return null;
   if (room.phase !== 'reveal') return 'The round is not over yet.';
   room.round += 1;
   room.asker = room.asker === 0 ? 1 : 0;
   room.question = null;
   room.answers = [null, null];
   room.reveal = null;
+  room.phase = 'asking';
+  touch(room);
+  return null;
+}
+
+/**
+ * Wrap up: allowed between rounds once at least one round has been revealed.
+ * Wrapping up from the reveal screen also passes the asking turn, the same
+ * as "next" would, so a restart starts with the right player.
+ */
+export function finishGame(room: Room): string | null {
+  if (room.phase === 'finished') return null;
+  if (room.phase === 'answering') return 'Finish this round first, then wrap up.';
+  if (room.phase === 'lobby' || room.history.length === 0) return 'Play at least one round first!';
+  if (room.phase === 'reveal') room.asker = room.asker === 0 ? 1 : 0;
+  room.question = null;
+  room.answers = [null, null];
+  room.reveal = null;
+  room.phase = 'finished';
+  touch(room);
+  return null;
+}
+
+/** Fresh scoreboard with the same two players; whoever is due to ask next still asks first. */
+export function restartGame(room: Room): string | null {
+  if (room.phase === 'asking' && room.round === 1 && room.history.length === 0) return null;
+  if (room.phase !== 'finished') return 'Wrap up the game before starting a new one.';
+  room.round = 1;
+  room.question = null;
+  room.answers = [null, null];
+  room.reveal = null;
+  room.matches = 0;
+  room.streak = 0;
+  room.bestStreak = 0;
+  room.history = [];
   room.phase = 'asking';
   touch(room);
   return null;
@@ -172,6 +263,8 @@ export function viewFor(room: Room, seat: Seat): GameView {
     partnerAnswered: room.answers[partner] !== null,
     reveal: room.phase === 'reveal' ? room.reveal : null,
     matches: room.matches,
+    streak: room.streak,
+    bestStreak: room.bestStreak,
     history: room.history,
   };
 }

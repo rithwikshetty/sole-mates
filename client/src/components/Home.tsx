@@ -7,28 +7,33 @@ import { Bunting, ShoeDuo, ShoePic } from './Shoes';
 interface Props {
   create: (name: string, outfit: Outfit) => Promise<string | null>;
   join: (code: string, name: string, outfit: Outfit) => Promise<string | null>;
-  peek: (code: string) => Promise<PeekAck>;
+  peek: (code: string, name: string) => Promise<PeekAck>;
 }
 
 const TITLE = 'Sole Mates';
 
-/** Info about the host's already-taken shoe, shown when joining. */
-interface HostPick {
-  name: string;
-  shoe: ShoeStyle;
-  color: ShoeColor;
+/** The partner already in the room and their taken shoe, shown when joining. */
+interface PartnerPick {
+  name: string | null;
+  shoe: ShoeStyle | null;
+  color: ShoeColor | null;
+  /** True when this join hands back a seat the same name dropped out of. */
+  resuming: boolean;
 }
+
+/** Room codes arrive from links in any case and with stray whitespace. */
+const normalizeCode = (raw: string) => raw.replace(/\s+/g, '').toUpperCase().slice(0, 4);
 
 export default function Home({ create, join, peek }: Props) {
   const [name, setName] = useState('');
   // A shared link can prefill the room code (…/?code=ABCD).
-  const [code, setCode] = useState(() => new URLSearchParams(location.search).get('code') ?? '');
+  const [code, setCode] = useState(() => normalizeCode(new URLSearchParams(location.search).get('code') ?? ''));
   const [joining, setJoining] = useState(() => code.length > 0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // Wardrobe step: null until the name/code step is done.
-  const [wardrobe, setWardrobe] = useState<null | { host: HostPick | null }>(null);
+  const [wardrobe, setWardrobe] = useState<null | { partner: PartnerPick | null }>(null);
   const [shoe, setShoe] = useState<ShoeStyle | null>(null);
   const [color, setColor] = useState<ShoeColor>('rose');
 
@@ -45,56 +50,76 @@ export default function Home({ create, join, peek }: Props) {
     if (!requireName()) return;
     sfx.click();
     setError(null);
-    setWardrobe({ host: null });
+    setWardrobe({ partner: null });
   };
 
   const onJoin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!requireName()) return;
-    if (code.trim().length < 4) {
+    const n = requireName();
+    if (!n) return;
+    if (code.length < 4) {
       setError('That room code looks too short.');
       return;
     }
     sfx.click();
     setError(null);
     setBusy(true);
-    const res = await peek(code);
+    const res = await peek(code, n);
     setBusy(false);
-    if (!res.ok || !res.hostShoe || !res.hostColor) {
+    if (!res.ok) {
       setError(res.error ?? 'Could not find that room.');
       return;
     }
-    // A selection left over from an earlier visit may now clash with this host.
-    setShoe((s) => (s === res.hostShoe ? null : s));
-    setWardrobe({ host: { name: res.hostName ?? 'Your partner', shoe: res.hostShoe, color: res.hostColor } });
+    // A selection left over from an earlier visit may now clash with the partner.
+    setShoe((s) => (s === res.partnerShoe ? null : s));
+    setWardrobe({
+      partner: {
+        name: res.partnerName ?? null,
+        shoe: res.partnerShoe ?? null,
+        color: res.partnerColor ?? null,
+        resuming: res.resuming ?? false,
+      },
+    });
   };
 
   const confirmOutfit = async () => {
     const n = requireName();
     if (!n || shoe === null || busy) return;
-    if (wardrobe?.host && shoe === wardrobe.host.shoe) {
+    if (wardrobe?.partner?.shoe && shoe === wardrobe.partner.shoe) {
       setShoe(null);
-      setError(`${wardrobe.host.name} already has that one. Pick another style!`);
+      setError(`${wardrobe.partner.name} already has that one. Pick another style!`);
       return;
     }
     sfx.lockIn();
     setError(null);
     const outfit: Outfit = { shoe, color };
     setBusy(true);
-    const err = wardrobe?.host ? await join(code, n, outfit) : await create(n, outfit);
+    const err = wardrobe?.partner ? await join(code, n, outfit) : await create(n, outfit);
     setBusy(false);
     if (err) setError(err);
   };
 
   if (wardrobe) {
-    const host = wardrobe.host;
+    const partner = wardrobe.partner;
     return (
       <main className="screen home">
         <Bunting className="bunting" />
-        <h2 className="screen-title">Pick your shoe, {name.trim()}!</h2>
-        {host && (
+        <h2 className="screen-title">
+          {partner?.resuming ? `Welcome back, ${name.trim()}!` : `Pick your shoe, ${name.trim()}!`}
+        </h2>
+        {partner && (
           <p className="wardrobe-host">
-            Joining <strong>{host.name}</strong>. Their shoe is off the rack. 🔒
+            {partner.resuming && partner.name ? (
+              <>
+                <strong>{partner.name}</strong> kept the game going. Pick a shoe and you are back in. 📶
+              </>
+            ) : partner.resuming ? (
+              <>Your room is still open. Pick a shoe and you are back in. 📶</>
+            ) : (
+              <>
+                Joining <strong>{partner.name}</strong>. Their shoe is off the rack. 🔒
+              </>
+            )}
           </p>
         )}
 
@@ -109,7 +134,7 @@ export default function Home({ create, join, peek }: Props) {
 
           <div className="style-grid">
             {SHOE_STYLES.map((s) => {
-              const taken = host?.shoe === s.id;
+              const taken = partner?.shoe === s.id;
               const picked = shoe === s.id;
               return (
                 <button
@@ -117,14 +142,14 @@ export default function Home({ create, join, peek }: Props) {
                   type="button"
                   className={`style-btn ${picked ? 'style-btn-picked' : ''} ${taken ? 'style-btn-taken' : ''}`}
                   disabled={taken}
-                  aria-label={taken ? `${s.label}, taken by ${host?.name}` : s.label}
+                  aria-label={taken ? `${s.label}, taken by ${partner?.name}` : s.label}
                   onClick={() => {
                     sfx.select();
                     setShoe(s.id);
                   }}
                 >
-                  <ShoePic shoe={s.id} color={taken ? host.color : color} className="style-btn-shoe" />
-                  <span className="style-btn-label">{taken ? `${host?.name}'s` : s.label}</span>
+                  <ShoePic shoe={s.id} color={(taken && partner?.color) || color} className="style-btn-shoe" />
+                  <span className="style-btn-label">{taken ? `${partner?.name}'s` : s.label}</span>
                   {taken && <span className="style-btn-lock">🔒</span>}
                 </button>
               );
@@ -155,7 +180,7 @@ export default function Home({ create, join, peek }: Props) {
             disabled={shoe === null || busy}
             onClick={confirmOutfit}
           >
-            {busy ? 'One sec…' : host ? 'Join with this shoe! 🥂' : 'Open the room! 💍'}
+            {busy ? 'One sec…' : partner?.resuming ? 'Rejoin the game! 📶' : partner ? 'Join with this shoe! 🥂' : 'Open the room! 💍'}
           </button>
           {error && <p className="form-error">{error}</p>}
         </div>
@@ -213,7 +238,7 @@ export default function Home({ create, join, peek }: Props) {
               value={code}
               maxLength={4}
               placeholder="ABCD"
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => setCode(normalizeCode(e.target.value))}
               autoComplete="off"
             />
             <button type="submit" className="btn btn-slate btn-big" disabled={busy}>

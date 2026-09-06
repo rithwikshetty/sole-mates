@@ -9,7 +9,7 @@ import { isMuted, sfx, startMusic, syncMutedFromStorage, toggleMuted } from './s
 import { useGame } from './useGame';
 
 export default function App() {
-  const { view, booting, toast, create, join, peek, ask, answer, next, leave } = useGame();
+  const { view, booting, toast, create, join, peek, ask, answer, next, finish, restart, leave } = useGame();
   const [showHelp, setShowHelp] = useState(false);
   const [muted, setMuted] = useState(isMuted());
 
@@ -58,9 +58,23 @@ export default function App() {
     );
   }
 
+  const inGame = !!view && view.phase !== 'lobby';
+
+  const leaveGame = () => {
+    sfx.click();
+    if (window.confirm('Leave this game? Your partner can keep the room and you can rejoin with the same name.')) {
+      leave();
+    }
+  };
+
   return (
     <div className="app">
       <div className="corner-btns">
+        {inGame && (
+          <button type="button" className="icon-btn" aria-label="Leave game" title="Leave game" onClick={leaveGame}>
+            🚪
+          </button>
+        )}
         <button
           type="button"
           className="icon-btn"
@@ -87,7 +101,7 @@ export default function App() {
       ) : view.phase === 'lobby' ? (
         <Lobby view={view} leave={leave} />
       ) : (
-        <Game view={view} ask={ask} answer={answer} next={next} />
+        <Game view={view} ask={ask} answer={answer} next={next} finish={finish} restart={restart} leave={leave} />
       )}
 
       {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}

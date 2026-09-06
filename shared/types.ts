@@ -6,7 +6,8 @@ export type Phase =
   | 'lobby' // waiting for the second player to join
   | 'asking' // the current asker is writing/picking a question
   | 'answering' // both players privately pick who the answer is
-  | 'reveal'; // both answers are shown (client animates the 3-2-1 first)
+  | 'reveal' // both answers are shown (client animates the 3-2-1 first)
+  | 'finished'; // someone wrapped up; both players look at the recap
 
 /** A player's answer is the seat index (0 or 1) of the person they raised the shoe for. */
 export type Seat = 0 | 1;
@@ -53,6 +54,10 @@ export interface GameView {
   reveal: RevealEntry | null;
   /** Rounds where both pointed at the same person. */
   matches: number;
+  /** Consecutive matches ending with the latest revealed round. */
+  streak: number;
+  /** Longest run of consecutive matches this game. */
+  bestStreak: number;
   history: RevealEntry[];
 }
 
@@ -69,23 +74,31 @@ export interface JoinAck {
   playerId?: string;
 }
 
-/** A pre-join look at a room, so the join screen can grey out the host's shoe. */
+/**
+ * A pre-join look at a room, so the join screen can grey out the partner's
+ * shoe. `resuming` means the name matches a player who dropped off, and the
+ * join will hand that seat back instead of taking the empty one. The partner
+ * fields are absent when a host reclaims a room nobody has joined yet.
+ */
 export interface PeekAck {
   ok: boolean;
   error?: string;
-  hostName?: string;
-  hostShoe?: ShoeStyle;
-  hostColor?: ShoeColor;
+  partnerName?: string;
+  partnerShoe?: ShoeStyle;
+  partnerColor?: ShoeColor;
+  resuming?: boolean;
 }
 
 export interface ClientToServerEvents {
   create: (name: string, outfit: Outfit, ack: (res: CreateAck) => void) => void;
   join: (code: string, name: string, outfit: Outfit, ack: (res: JoinAck) => void) => void;
-  peek: (code: string, ack: (res: PeekAck) => void) => void;
+  peek: (code: string, name: string, ack: (res: PeekAck) => void) => void;
   rejoin: (code: string, playerId: string, ack: (res: JoinAck) => void) => void;
   ask: (question: string) => void;
   answer: (choice: Seat) => void;
   next: () => void;
+  finish: () => void;
+  restart: () => void;
   leave: () => void;
 }
 

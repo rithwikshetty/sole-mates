@@ -488,29 +488,6 @@ export function Heart({ className, color = 'var(--rose)' }: { className?: string
   );
 }
 
-/** Interlocked wedding rings. */
-export function Rings({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 110 90" className={className} aria-hidden="true">
-      <g fill="none">
-        <circle cx="42" cy="52" r="24" stroke="var(--ink)" strokeWidth="15" />
-        <circle cx="42" cy="52" r="24" stroke="var(--gold)" strokeWidth="8" />
-        <circle cx="70" cy="52" r="24" stroke="var(--ink)" strokeWidth="15" />
-        <circle cx="70" cy="52" r="24" stroke="var(--gold)" strokeWidth="8" />
-      </g>
-      {/* diamond on the left ring */}
-      <path
-        d="M 34 16 L 50 16 L 54 24 L 42 36 L 30 24 Z"
-        fill="#CFEFF7"
-        stroke="var(--ink)"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <path d="M 34 16 L 42 24 L 50 16 M 30 24 L 54 24 M 42 24 L 42 35" fill="none" stroke="var(--ink)" strokeWidth="2.5" />
-    </svg>
-  );
-}
-
 /** Bunting garland for the top of celebratory screens. */
 export function Bunting({ className }: { className?: string }) {
   const colors = ['var(--rose)', 'var(--gold)', 'var(--slate)', 'var(--rose)', 'var(--gold)', 'var(--slate)', 'var(--rose)'];
